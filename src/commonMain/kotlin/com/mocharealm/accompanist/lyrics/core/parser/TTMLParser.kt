@@ -35,6 +35,17 @@ object TTMLParser : ILyricsParser {
             .replace("&quot;", "\"")
     }
 
+    private fun splitTranslationByBracket(text: String): Pair<String, String?> {
+        val regex = Regex("^(.*?)（(.*?)）$")
+        val match = regex.find(text)
+        return if (match != null) {
+            val outside = match.groupValues[1].trim()
+            val inside = match.groupValues[2].trim()
+            Pair(outside, if (inside.isNotEmpty()) inside else null)
+        } else {
+            Pair(text.trim(), null)
+        }
+    }
 
     override fun parse(content: String): SyncedLyrics {
         val content = preformattingTTML(content)
@@ -43,7 +54,7 @@ object TTMLParser : ILyricsParser {
         val rootElement = parser.parse(content)
 
         val agentAlignments = parseMetadata(rootElement)
-
+        val iTunesTranslations = parseITunesTranslations(rootElement)
         val allPElements = findAllPElements(rootElement)
 
         allPElements.forEach { pElement ->
@@ -58,14 +69,18 @@ object TTMLParser : ILyricsParser {
                             child.attributes.none { it.name.endsWith(":role") && it.value == "x-bg" }
                 }
 
-                // 处理普通歌词行
+                val iTunesLineKey = pElement.attributes.find { it.name == "itunes:key" || it.name == "key" }?.value
+                val iTunesTranslationRaw = if (iTunesLineKey != null) iTunesTranslations[iTunesLineKey] else null
+                val iTunesTranslationPair = if (iTunesTranslationRaw != null) splitTranslationByBracket(iTunesTranslationRaw) else null
+
                 val syllables = parseSyllablesFromChildren(pElement.children)
 
                 if (syllables.isNotEmpty()) {
                     parsedLines.add(
                         KaraokeLine(
                             syllables = syllables,
-                            translation = pLevelTranslationSpan?.text?.trim(),
+                            translation = pLevelTranslationSpan?.text?.trim()
+                                ?: iTunesTranslationPair?.first, // 主歌词取括号外
                             isAccompaniment = false,
                             alignment = currentAlignment,
                             start = begin.parseAsTime(),
@@ -81,17 +96,23 @@ object TTMLParser : ILyricsParser {
                         val bgSpanBegin = child.attributes.find { it.name == "begin" }?.value
                         val bgSpanEnd = child.attributes.find { it.name == "end" }?.value
 
-
                         val accompanimentSyllables = parseSyllablesFromChildren(child.children)
                         if (accompanimentSyllables.isNotEmpty()) {
                             val bgTranslationSpan = child.children.find { bgChild ->
                                 bgChild.attributes.any { it.name.endsWith(":role") && it.value == "x-translation" }
                             }
 
+                            val bgITunesLineKey = child.attributes.find { it.name == "itunes:key" || it.name == "key" }?.value
+                                ?: iTunesLineKey
+                            val bgITunesTranslationRaw = if (bgITunesLineKey != null) iTunesTranslations[bgITunesLineKey] else null
+                            val bgITunesTranslationPair = if (bgITunesTranslationRaw != null) splitTranslationByBracket(bgITunesTranslationRaw) else null
+
                             parsedLines.add(
                                 KaraokeLine(
                                     syllables = accompanimentSyllables,
-                                    translation = bgTranslationSpan?.text?.trim(),
+                                    translation = bgTranslationSpan?.text?.trim()
+                                        ?: bgITunesTranslationPair?.second // 和声取括号内
+                                        ?: bgITunesTranslationPair?.first, // 如果括号内没有则回退括号外
                                     isAccompaniment = true,
                                     alignment = currentAlignment,
                                     start = bgSpanBegin?.parseAsTime()
@@ -110,6 +131,26 @@ object TTMLParser : ILyricsParser {
         return SyncedLyrics(lines = parsedLines.sortedBy { it.start })
     }
 
+    private fun parseITunesTranslations(element: XmlElement): Map<String, String> {
+        val translations = mutableMapOf<String, String>()
+        fun findTranslations(elem: XmlElement) {
+            if (elem.name == "translation" || elem.name.endsWith(":translation")) {
+                elem.children.forEach { textElem ->
+                    if (textElem.name == "text") {
+                        val key = textElem.attributes.find { it.name == "for" }?.value
+                        val value = textElem.text
+                        if (key != null && value.isNotBlank()) {
+                            translations[key] = value.trim()
+                        }
+                    }
+                }
+            }
+            elem.children.forEach { findTranslations(it) }
+        }
+        findTranslations(element)
+        return translations
+    }
+
     /**
      * Parses a list of XmlElement children to extract KaraokeSyllables.
      * This function intelligently handles spacing by checking for `#text` nodes between `<span>` elements.
@@ -119,6 +160,7 @@ object TTMLParser : ILyricsParser {
         for (i in children.indices) {
             val child = children[i]
 
+            // We only care about <span> elements that are not for translation or background roles at this level.
             if (child.name == "span" && child.attributes.none {
                     it.name.endsWith(":role") && (it.value == "x-translation" || it.value == "x-bg")
                 }) {
@@ -145,6 +187,7 @@ object TTMLParser : ILyricsParser {
             }
         }
 
+        // Trim the trailing space from the very last syllable of the line.
         if (syllables.isNotEmpty()) {
             val last = syllables.last()
             syllables[syllables.lastIndex] =

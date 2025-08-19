@@ -145,4 +145,114 @@ class TTMLParserTest {
         assertEquals("00:01.500".parseAsTime(),bgLine.start)
         assertEquals("00:02.500".parseAsTime(),bgLine.end)
     }
+
+    @Test
+    fun testITunesMetadataTranslation() {
+        val ttml = """
+            <tt xmlns="http://www.w3.org/ns/ttml" xmlns:itunes="http://music.apple.com/lyric-ttml-internal"
+                xmlns:ttm="http://www.w3.org/ns/ttml#metadata" itunes:timing="Word" xml:lang="en">
+                <head>
+                    <metadata>
+                        <ttm:agent type="person" xml:id="v1" />
+                        <iTunesMetadata xmlns="http://music.apple.com/lyric-ttml-internal">
+                            <translations>
+                                <translation type="subtitle" xml:lang="zh-Hans">
+                                    <text for="L1">那是两个相爱的人</text>
+                                    <text for="L2">坐在车里 听着《Blonde》 心悄悄靠近彼此</text>
+                                    <text for="L3">粉橙色的天空下 如孩童般纯真 无关 Donald Glover</text>
+                                </translation>
+                            </translations>
+                        </iTunesMetadata>
+                    </metadata>
+                </head>
+                <body dur="3:29.260">
+                    <div begin="15.465" end="30.064">
+                        <p begin="15.465" end="16.533" itunes:key="L1" ttm:agent="v1">
+                            <span begin="15.465" end="15.694">It</span>
+                            <span begin="15.694" end="15.894">was</span>
+                            <span begin="15.894" end="16.055">just</span>
+                            <span begin="16.055" end="16.155">two</span>
+                            <span begin="16.155" end="16.533">lovers</span>
+                        </p>
+                        <p begin="16.534" end="17.000" itunes:key="L2" ttm:agent="v1">
+                            <span begin="16.534" end="17.000">Sitting in the car</span>
+                        </p>
+                        <p begin="17.001" end="18.000" ttm:agent="v1">
+                            <span begin="17.001" end="18.000">No translation here</span>
+                        </p>
+                        <p begin="18.001" end="19.000" itunes:key="L3" ttm:agent="v1">
+                            <span begin="18.001" end="19.000">Under the orange sky</span>
+                            <span ttm:role="x-translation" xml:lang="zh-CN">行内优先</span>
+                        </p>
+                    </div>
+                </body>
+            </tt>
+        """.trimIndent()
+
+        val result = TTMLParser.parse(ttml)
+        assertEquals(4, result.lines.size)
+
+        val line1 = result.lines[0] as KaraokeLine
+        val line2 = result.lines[1] as KaraokeLine
+        val line3 = result.lines[2] as KaraokeLine
+        val line4 = result.lines[3] as KaraokeLine
+
+        // 通过itunes:key获取翻译
+        assertEquals("那是两个相爱的人", line1.translation)
+        assertEquals("坐在车里 听着《Blonde》 心悄悄靠近彼此", line2.translation)
+        // 没有key也没有行内翻译，translation应为null
+        assertEquals(null, line3.translation)
+        // 行内翻译优先
+        assertEquals("行内优先", line4.translation)
+    }
+
+    @Test
+    fun testITunesMetadataBgTranslation() {
+        val ttml = """
+            <tt xmlns="http://www.w3.org/ns/ttml" xmlns:itunes="http://music.apple.com/lyric-ttml-internal"
+                xmlns:ttm="http://www.w3.org/ns/ttml#metadata" itunes:timing="Word" xml:lang="en">
+                <head>
+                    <metadata>
+                        <ttm:agent type="person" xml:id="v1" />
+                        <iTunesMetadata xmlns="http://music.apple.com/lyric-ttml-internal">
+                            <translations>
+                                <translation type="subtitle" xml:lang="zh-Hans">
+                                    <text for="L57">宝贝 这就是我的迷人之处（宝贝 这就是我的迷）</text>
+                                </translation>
+                            </translations>
+                        </iTunesMetadata>
+                    </metadata>
+                </head>
+                <body dur="3:29.260">
+                    <div begin="2:25.240" end="2:28.737">
+                        <p begin="2:25.240" end="2:28.737" itunes:key="L57" ttm:agent="v1000">
+                            <span begin="2:25.240" end="2:25.719">Baby,</span>
+                            <span begin="2:25.719" end="2:25.887">that's</span>
+                            <span begin="2:25.887" end="2:26.052">the</span>
+                            <span begin="2:26.052" end="2:26.236">fun</span>
+                            <span begin="2:26.236" end="2:26.404">of</span>
+                            <span begin="2:26.404" end="2:26.704">me</span>
+                            <span ttm:role="x-bg">
+                                <span begin="2:26.545" end="2:26.970">(Baby,</span>
+                                <span begin="2:26.970" end="2:27.154">that's</span>
+                                <span begin="2:27.154" end="2:27.420">the</span>
+                                <span begin="2:27.420" end="2:27.691">fun</span>
+                                <span begin="2:27.691" end="2:27.873">of</span>
+                                <span begin="2:27.873" end="2:28.737">me)</span>
+                            </span>
+                        </p>
+                    </div>
+                </body>
+            </tt>
+        """.trimIndent()
+
+        val result = TTMLParser.parse(ttml)
+        // 应有两行：主歌词和和声
+        assertEquals(2, result.lines.size)
+        val mainLine = result.lines.find { !(it as KaraokeLine).isAccompaniment } as KaraokeLine
+        val bgLine = result.lines.find { (it as KaraokeLine).isAccompaniment } as KaraokeLine
+        // 主歌词和和声都应能通过父key获取翻译
+        assertEquals("宝贝 这就是我的迷人之处", mainLine.translation) //括号外内容
+        assertEquals("宝贝 这就是我的迷", bgLine.translation) //括号内内容
+    }
 }
