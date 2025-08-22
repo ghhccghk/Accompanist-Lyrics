@@ -34,6 +34,10 @@ data class KaraokeLine(
         else
             return current in (start - 800)..(end + 800)
     }
+
+    fun List<KaraokeSyllable>.contents(): String {
+        return this.joinToString("") { it.content }
+    }
 }
 
 fun SyncedLine.toKaraokeLine(): KaraokeLine {
