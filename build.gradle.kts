@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.mocharealm.accompanist"
-version = "0.3.1"
+version = "0.3.3"
 
 repositories {
     mavenCentral()
@@ -18,36 +18,39 @@ kotlin {
     jvmToolchain(21)
     jvm()
 
-//    js(IR) {
-//        browser()
-//        nodejs()
-//    }
+    js(IR) {
+        browser {
+            testTask {
+                useKarma {
+                    useChromeHeadless()
+                }
+            }
+        }
+        nodejs()
+    }
 
+    wasmJs {
+        browser()
+        nodejs()
+    }
+
+    macosX64()
+    macosArm64()
     iosX64()
     iosArm64()
     iosSimulatorArm64()
 
     sourceSets {
-        val commonMain by getting {
+        commonMain {
             dependencies {
                 implementation(kotlin("stdlib"))
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
             }
         }
 
-        val commonTest by getting {
+        commonTest {
             dependencies {
                 implementation(kotlin("test"))
-            }
-        }
-
-        val jvmMain by getting {
-            dependencies {
-            }
-        }
-
-        val jvmTest by getting {
-            dependencies {
             }
         }
     }
