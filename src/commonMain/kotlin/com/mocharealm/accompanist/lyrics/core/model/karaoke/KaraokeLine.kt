@@ -10,6 +10,7 @@ data class KaraokeLine(
     val alignment: KaraokeAlignment,
     override val start: Int,
     override val end: Int,
+    val phonetic: String? = null,
 ) : ISyncedLine {
 
     init {
@@ -36,9 +37,9 @@ data class KaraokeLine(
 }
 
 fun SyncedLine.toKaraokeLine(): KaraokeLine {
-    return _root_ide_package_.com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine(
+    return KaraokeLine(
         syllables = listOf(
-            _root_ide_package_.com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeSyllable(
+            KaraokeSyllable(
                 this.content,
                 this.start,
                 this.end
