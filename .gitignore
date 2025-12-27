@@ -5,6 +5,7 @@ build/
 !**/src/test/**/build/
 gradle.properties
 key.gpg
+.kotlin/
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
