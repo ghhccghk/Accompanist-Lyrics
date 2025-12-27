@@ -22,7 +22,7 @@ class LyricsFormatGuesser {
                 "LRC"
             ) { it.contains("\\[\\d{2}:\\d{2}\\.\\d{2,3}].+".toRegex()) })
         registerFormat(
-            _root_ide_package_.com.mocharealm.accompanist.lyrics.core.utils.LyricsFormatGuesser.LyricsFormat(
+            LyricsFormat(
                 "ENHANCED_LRC"
             ) {
                 val hasVoiceTag = it.contains("\\]v[12]:".toRegex())
@@ -44,7 +44,8 @@ class LyricsFormatGuesser {
         registerFormat(
             LyricsFormat(
                 "KUGOU_KRC"
-            ) { val lines = it.lines().map { it.trim() }.filter { it.isNotEmpty() }
+            ) {
+                val lines = it.lines().map { it.trim() }.filter { it.isNotEmpty() }
                 // 行时间戳正则 [0,3946]
                 val lineTimeRegex = """^\[\d+,\d+]""".toRegex()
                 // 字时间戳正则 <0,171,0>字
@@ -52,7 +53,8 @@ class LyricsFormatGuesser {
                 // 确定符合格式
                 lines.any { line ->
                     lineTimeRegex.containsMatchIn(line) && wordTimeRegex.containsMatchIn(line)
-                } })
+                }
+            })
     }
 
     /**
