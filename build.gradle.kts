@@ -4,12 +4,12 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     kotlin("multiplatform") version "2.2.21"
-    kotlin("plugin.serialization") version "2.2.10"
+    kotlin("plugin.serialization") version "2.2.21"
     id("com.vanniktech.maven.publish") version "0.34.0"
 }
 
 group = "com.mocharealm.accompanist"
-version = "0.3.4"
+version = "0.4.0"
 
 repositories {
     mavenCentral()
