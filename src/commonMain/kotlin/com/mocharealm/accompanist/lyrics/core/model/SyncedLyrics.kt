@@ -4,7 +4,7 @@ data class SyncedLyrics(
     val lines: List<ISyncedLine>,
     val title: String = "",
     val id: String = "0",
-    val artists: List<String>? = emptyList(),
+    val artists: List<Artist>? = emptyList(),
 ) {
     /**
      * Gets the index of the first line that should be highlighted at the given time.
