@@ -31,14 +31,17 @@ internal fun String.parseAsTime(): Int {
                 val secondsAndMillis = parseSecondsAndMillis(parts[2])
                 hours + minutes + secondsAndMillis
             }
+
             2 -> { // Format: MM:SS.ms
                 val minutes = parts[0].toIntOrNull()?.times(60 * 1000) ?: 0
                 val secondsAndMillis = parseSecondsAndMillis(parts[1])
                 minutes + secondsAndMillis
             }
+
             1 -> { // Format: SS.ms
                 parseSecondsAndMillis(parts[0])
             }
+
             else -> 0
         }
     } catch (_: Exception) {

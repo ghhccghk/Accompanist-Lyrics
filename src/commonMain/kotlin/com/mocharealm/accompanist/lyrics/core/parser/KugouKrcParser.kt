@@ -23,9 +23,10 @@ object KugouKrcParser : ILyricsParser {
 
     override fun parse(content: String): SyncedLyrics {
         val rawLines = content.lineSequence().toList()
-        // 翻译 和注音
         val languageLine = rawLines.firstOrNull { languageLineRegex.containsMatchIn(it.trim()) }
-        val (translations,prons) = parseTranslations(languageLine)?: Pair(emptyList(), emptyList())
+        val (translations, phonetics) = parseTranslations(languageLine) ?: Pair(
+            emptyList(), emptyList()
+        )
 
         val out = mutableListOf<KaraokeLine>()
         var lyricLineIndex = 0
@@ -36,25 +37,25 @@ object KugouKrcParser : ILyricsParser {
             if (line.isEmpty()) continue
             if (languageLineRegex.containsMatchIn(line)) continue
 
-            // 背景行
+            // Accompaniment line
             bgLineRegex.find(line)?.let { m ->
                 val bgContent = m.groupValues[1]
-                val sylls = parseSyllablesWithRoleMerge(bgContent, 0)
-                if (sylls.isNotEmpty()) {
+                val syllables = parseSyllablesWithRoleMerge(bgContent, 0)
+                if (syllables.isNotEmpty()) {
                     out.add(
                         KaraokeLine(
-                            syllables = sylls,
+                            syllables = syllables,
                             translation = null,
                             isAccompaniment = true,
                             alignment = KaraokeAlignment.Unspecified,
-                            start = sylls.first().start,
-                            end = sylls.last().end
+                            start = syllables.first().start,
+                            end = syllables.last().end
                         )
                     )
                 }
                 return@let
             } ?: run {
-                // 正常歌词行
+                // Normal Line
                 val m = krcLineRegex.find(line) ?: return@run
                 var lineStart = m.groupValues[1].toLong()
                 val contentPart = m.groupValues[3]
@@ -64,21 +65,22 @@ object KugouKrcParser : ILyricsParser {
                 }
                 lastLineStart = lineStart.toInt()
 
-                val sylls = parseSyllablesWithRoleMerge(contentPart, lineStart.toInt())
+                val syllables = parseSyllablesWithRoleMerge(
+                    contentPart, lineStart.toInt()
+                ).mapIndexed { index, syllable -> syllable.copy(phonetic = phonetics[index]) }
 
-                // 判断角色 → alignment
-                val (alignment, finalSylls) = detectRoleAndAlignment(sylls)
+                val (alignment, finalSyllables) = detectRoleAndAlignment(syllables)
 
-                val translation = translations?.getOrNull(lyricLineIndex)?.takeIf { it.isNotBlank() }
+                val translation = translations.getOrNull(lyricLineIndex)?.takeIf { it.isNotBlank() }
 
                 out.add(
                     KaraokeLine(
-                        syllables = finalSylls,
+                        syllables = finalSyllables,
                         translation = translation,
                         isAccompaniment = false,
                         alignment = alignment,
-                        start = finalSylls.first().start,
-                        end = finalSylls.last().end
+                        start = finalSyllables.first().start,
+                        end = finalSyllables.last().end,
                     )
                 )
                 lyricLineIndex++
@@ -88,30 +90,36 @@ object KugouKrcParser : ILyricsParser {
         return SyncedLyrics(out)
     }
 
-    /** 根据行首 token 动态识别角色和对齐 */
-    private fun detectRoleAndAlignment(sylls: List<KaraokeSyllable>): Pair<KaraokeAlignment, List<KaraokeSyllable>> {
-        if (sylls.isEmpty()) return KaraokeAlignment.Unspecified to sylls
+    private fun detectRoleAndAlignment(syllables: List<KaraokeSyllable>): Pair<KaraokeAlignment, List<KaraokeSyllable>> {
+        if (syllables.isEmpty()) return KaraokeAlignment.Unspecified to syllables
 
-        // 把整行拼起来
-        val lineContent = sylls.joinToString(separator = "") { it.content }
+        val lineContent = syllables.joinToString(separator = "") { it.content }
 
-        // 判断行首是否有角色标识
-        if (lineContent.length > 1 && (lineContent.startsWith("：") || lineContent.startsWith(":") ||
-                    lineContent.endsWith("：") || lineContent.endsWith(":"))) {
-            // 切换逻辑
+        // Check if there is a vocal mark
+        if (lineContent.length > 1
+            && (lineContent.startsWith("：")
+                            || lineContent.startsWith(":")
+                            || lineContent.endsWith("：")
+                            || lineContent.endsWith(":")
+                    )
+        ) {
+            // Toggle alignment
             currentToggle = if (currentToggle == KaraokeAlignment.Start) {
                 KaraokeAlignment.End
             } else {
                 KaraokeAlignment.Start
             }
-            return currentToggle to sylls
+            return currentToggle to syllables
         }
 
-        return currentToggle to sylls
+        return currentToggle to syllables
     }
 
-    private fun parseSyllablesWithRoleMerge(content: String, lineStart: Int): List<KaraokeSyllable> {
+    private fun parseSyllablesWithRoleMerge(
+        content: String, lineStart: Int
+    ): List<KaraokeSyllable> {
         data class Tok(val offset: Int, val duration: Int, val text: String)
+
         val tokens = mutableListOf<Tok>()
         var cur = 0
         while (cur < content.length) {
@@ -171,7 +179,7 @@ object KugouKrcParser : ILyricsParser {
                 val language = jsonObj["language"]?.jsonPrimitive?.intOrNull ?: continue
 
                 if (type == 0 && language == 0) {
-                    // 注音
+                    // Phonetic
                     val pronunciation = jsonObj["lyricContent"]?.jsonArray ?: continue
                     for (row in pronunciation) {
                         val pronRow = row.jsonArray
@@ -180,7 +188,7 @@ object KugouKrcParser : ILyricsParser {
                 }
 
                 if (type == 1 && language == 0) {
-                    // 歌词
+                    // Content
                     val lyricContent = jsonObj["lyricContent"]?.jsonArray ?: continue
                     for (row in lyricContent) {
                         val arr = row.jsonArray
@@ -194,5 +202,4 @@ object KugouKrcParser : ILyricsParser {
             null
         }
     }
-
 }

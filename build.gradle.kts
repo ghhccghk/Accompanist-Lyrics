@@ -1,8 +1,9 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinMultiplatform
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
-    kotlin("multiplatform") version "2.2.10"
+    kotlin("multiplatform") version "2.2.21"
     kotlin("plugin.serialization") version "2.2.10"
     id("com.vanniktech.maven.publish") version "0.34.0"
 }
@@ -29,6 +30,7 @@ kotlin {
         nodejs()
     }
 
+    @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
         nodejs()

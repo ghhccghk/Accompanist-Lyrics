@@ -15,8 +15,10 @@ object LrcExporter : ILyricsExporter {
         if (lyrics.title.isNotBlank()) {
             builder.appendLine("[ti:${lyrics.title}]")
         }
-        if (lyrics.artists != null && lyrics.artists.isNotEmpty() && lyrics.artists.all { it.isNotBlank() }) {
-            builder.appendLine("[ar:${lyrics.artists.joinToString("/")}]")
+        if (lyrics.artists != null && lyrics.artists.isNotEmpty() && lyrics.artists.all { it.name.isNotBlank() }) {
+            builder.appendLine(
+                "[ar:${lyrics.artists.joinToString("/") { it.type + ":" + it.name }}]"
+            )
         }
 
         lyrics.lines.forEach { line ->
@@ -31,6 +33,7 @@ object LrcExporter : ILyricsExporter {
                     builder.appendLine("$timeTag${line.content}")
                     line.translation?.let { builder.appendLine("$timeTag$it") }
                 }
+
                 is KaraokeLine -> {
                     val content = line.syllables.joinToString("") { it.content }.trim()
                     builder.appendLine("$timeTag$content")

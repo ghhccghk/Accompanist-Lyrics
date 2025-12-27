@@ -1,6 +1,5 @@
 package com.mocharealm.accompanist.lyrics.core.utils
 
-
 internal data class XmlAttribute(
     val name: String,
     val value: String
@@ -28,7 +27,8 @@ internal class SimpleXmlParser {
                         if (stack.size > 1) {
                             val currentElement = stack.removeLast()
                             val parent = stack.removeLast() // Pop parent
-                            val newChildren = parent.children.toMutableList().apply { add(currentElement) }
+                            val newChildren =
+                                parent.children.toMutableList().apply { add(currentElement) }
                             stack.addLast(parent.copy(children = newChildren)) // Push updated parent back
                         }
                         i = endIndex + 1
@@ -38,7 +38,8 @@ internal class SimpleXmlParser {
                         val tagPart = cleanXml.substring(i + 1, endIndex)
 
                         val isSelfClosing = tagPart.endsWith("/")
-                        val actualTagPart = if (isSelfClosing) tagPart.dropLast(1).trim() else tagPart
+                        val actualTagPart =
+                            if (isSelfClosing) tagPart.dropLast(1).trim() else tagPart
 
                         val (tagName, attributes) = parseTagAndAttributes(actualTagPart)
                         val newElement =
@@ -52,7 +53,8 @@ internal class SimpleXmlParser {
                         if (isSelfClosing) {
                             if (stack.isNotEmpty()) {
                                 val parent = stack.removeLast() // Pop
-                                val newChildren = parent.children.toMutableList().apply { add(newElement) }
+                                val newChildren =
+                                    parent.children.toMutableList().apply { add(newElement) }
                                 stack.addLast(parent.copy(children = newChildren)) // Push updated
                             } else {
                                 stack.addLast(newElement) // This becomes the root
@@ -63,6 +65,7 @@ internal class SimpleXmlParser {
                         i = endIndex + 1
                     }
                 }
+
                 else -> {
                     // Handle text content
                     val nextTagIndex = cleanXml.indexOf('<', i)
@@ -91,7 +94,8 @@ internal class SimpleXmlParser {
                                         children = emptyList()
                                     )
                                 val parent = stack.removeLast()
-                                val newChildren = parent.children.toMutableList().apply { add(textNode) }
+                                val newChildren =
+                                    parent.children.toMutableList().apply { add(textNode) }
                                 stack.addLast(parent.copy(children = newChildren))
                             }
                         }

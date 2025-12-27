@@ -7,7 +7,6 @@ import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeSyllable
 import com.mocharealm.accompanist.lyrics.core.utils.toTimeFormattedString
 
 object TTMLExporter : ILyricsExporter {
-
     override fun export(lyrics: SyncedLyrics): String {
         if (lyrics.lines.isEmpty()) return ""
 

@@ -41,7 +41,7 @@ object TTMLParser : ILyricsParser {
         return if (match != null) {
             val outside = match.groupValues[1].trim()
             val inside = match.groupValues[2].trim()
-            Pair(outside, if (inside.isNotEmpty()) inside else null)
+            Pair(outside, inside.ifEmpty { null })
         } else {
             Pair(text.trim(), null)
         }
